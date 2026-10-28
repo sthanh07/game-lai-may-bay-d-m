@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-[#020308] select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber-Drift: Zero Gravity | 3D Sci-Fi Endless Runner</title>
+    
+    <!-- Google Fonts Sci-Fi -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        rajdhani: ['Rajdhani', 'sans-serif'],
+                    },
+                    colors: {
+                        neonCyan: '#00f3ff',
+                        neonMagenta: '#ff0077',
+                        neonGreen: '#00ffaa',
+                        darkSpace: '#020308',
+                    },
+                    boxShadow: {
+                        'neon-cyan': '0 0 25px rgba(0, 243, 255, 0.45)',
+                        'neon-magenta': '0 0 25px rgba(255, 0, 119, 0.45)',
+                        'neon-cyan-lg': '0 0 40px rgba(0, 243, 255, 0.7)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Thư viện GSAP -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+    <!-- Import Map cho Three.js & Addons -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        /* Tối ưu hóa font và trải nghiệm game toàn màn hình */
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Hiệu ứng kính mờ Cyberpunk Glassmorphism */
+        .glass-panel {
+            background: rgba(8, 12, 28, 0.7);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-panel-danger {
+            background: rgba(28, 8, 16, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 0, 119, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(255, 0, 119, 0.3);
+        }
+
+        /* Hiệu ứng quét dòng Scanlines */
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+
+        /* Nút viền neon sáng nhấp nháy */
+        .btn-neon-cyan {
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.15), rgba(0, 243, 255, 0.05));
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.7);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.25);
+            transition: all 0.25s ease;
+        }
+        .btn-neon-cyan:hover {
+            background: #00f3ff;
+            color: #020308;
+            text-shadow: none;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.85);
+            transform: translateY(-2px);
+        }
+
+        .btn-neon-magenta {
+            background: linear-gradient(135deg, rgba(255, 0, 119, 0.2), rgba(255, 0, 119, 0.05));
+            border: 1px solid #ff0077;
+            color: #ff0077;
+            text-shadow: 0 0 10px rgba(255, 0, 119, 0.7);
+            box-shadow: 0 0 15px rgba(255, 0, 119, 0.25);
+            transition: all 0.25s ease;
+        }
+        .btn-neon-magenta:hover {
+            background: #ff0077;
+            color: #ffffff;
+            text-shadow: none;
+            box-shadow: 0 0 30px rgba(255, 0, 119, 0.85);
+            transform: translateY(-2px);
+        }
+
+        /* Hiệu ứng xung nhịp âm thanh */
+        @keyframes soundWave {
+            0%, 100% { height: 4px; }
+            50% { height: 16px; }
+        }
+        .animate-sound-wave-1 { animation: soundWave 0.8s infinite ease-in-out; }
+        .animate-sound-wave-2 { animation: soundWave 0.6s infinite ease-in-out 0.2s; }
+        .animate-sound-wave-3 { animation: soundWave 1.0s infinite ease-in-out 0.4s; }
+    </style>
+</head>
+<body class="h-full w-full overflow-hidden relative">
+
+    <!-- 1. WebGL Three.js Canvas -->
+    <canvas id="webgl-canvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
+
+    <!-- Lớp phủ Scanlines tạo phong cách màn hình Sci-Fi CRT cổ điển -->
+    <div class="scanlines absolute inset-0 w-full h-full z-10 pointer-events-none"></div>
+
+    <!-- Lớp phủ Chớp Đỏ Rung Chấn khi Va Chạm (Camera Impact Screen Flash) -->
+    <div id="screen-flash" class="absolute inset-0 bg-red-600/35 z-25 pointer-events-none opacity-0 transition-opacity duration-150"></div>
+
+    <!-- ======================================================= -->
+    <!-- NÚT BẬT / TẮT ÂM THANH NỔI CỐ ĐỊNH Ở GÓC MÀN HÌNH (Z-50) -->
+    <!-- Luôn hiển thị trong suốt trò chơi (Menu, HUD, Game Over) -->
+    <!-- ======================================================= -->
+    <div class="fixed top-4 right-4 z-50 pointer-events-auto">
+        <button id="btn-audio-toggle" class="glass-panel group flex items-center gap-2.5 px-3 py-2 rounded-xl border border-cyan-500/40 hover:border-cyan-300 transition-all cursor-pointer shadow-neon-cyan" title="Bật / Tắt âm thanh Web Audio Synthesizer (Phím tắt: M)">
+            <!-- Icon Loa / Sóng âm -->
+            <span id="audio-icon-wrap" class="text-neonCyan flex items-center justify-center w-6 h-6">
+                <svg id="audio-icon-svg" class="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            </span>
+            <!-- Dải sóng âm hiển thị khi bật -->
+            <div id="audio-wave-bars" class="flex items-center gap-0.5 h-4">
+                <span class="w-1 bg-neonCyan rounded-full animate-sound-wave-1"></span>
+                <span class="w-1 bg-neonCyan rounded-full animate-sound-wave-2"></span>
+                <span class="w-1 bg-neonCyan rounded-full animate-sound-wave-3"></span>
+            </div>
+            <!-- Nhãn trạng thái -->
+            <div class="flex flex-col text-left leading-tight pr-1">
+                <span class="text-[9px] font-orbitron text-gray-400 uppercase tracking-widest">SYNTH SOUND</span>
+                <span id="audio-status-label" class="text-xs font-orbitron font-bold text-neonCyan tracking-wider">BẬT [M]</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. GIAO DIỆN CHÍNH / MENU LANDING PAGE -->
+    <!-- ========================================== -->
+    <div id="menu-screen" class="absolute inset-0 z-30 flex flex-col justify-between p-6 md:p-12 transition-opacity duration-500">
+        
+        <!-- Header Menu: Logo & Phiên bản -->
+        <header class="flex justify-between items-center pointer-events-auto">
+            <div class="flex items-center space-x-3">
+                <div class="w-3.5 h-3.5 rounded-full bg-neonCyan animate-ping"></div>
+                <div class="text-xs md:text-sm font-orbitron tracking-widest text-cyan-400 uppercase">
+                    CYBER-DRIFT // ZERO GRAVITY V1.0.5
+                </div>
+            </div>
+        </header>
+
+        <!-- Trung tâm Hero: Tiêu đề & Nút Chơi -->
+        <main class="max-w-4xl mx-auto text-center my-auto flex flex-col items-center pointer-events-auto">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 text-xs font-orbitron tracking-wider mb-4 shadow-neon-cyan">
+                <span>✦</span> WEB AUDIO SYNTHESIZER INTEGRATED
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black font-orbitron tracking-wider uppercase mb-2">
+                <span class="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.7)]">CYBER</span>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-neonCyan via-teal-300 to-neonMagenta drop-shadow-[0_0_35px_rgba(0,243,255,0.6)]">-DRIFT</span>
+            </h1>
+            
+            <p class="text-base sm:text-xl md:text-2xl font-orbitron text-gray-300 tracking-widest uppercase mb-8">
+                ZERO GRAVITY PROTOCOL
+            </p>
+
+            <!-- Nút Bắt đầu Chơi Lớn -->
+            <button id="btn-play" class="btn-neon-cyan font-orbitron text-lg sm:text-xl tracking-widest font-bold py-4 px-10 sm:px-14 rounded-xl cursor-pointer shadow-neon-cyan-lg flex items-center gap-3 group">
+                <span class="tracking-widest">INITIATE LAUNCH</span>
+                <svg class="w-6 h-6 transform group-hover:translate-x-1.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <!-- Hướng dẫn điều khiển nhanh & Điểm cao -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-10 w-full max-w-2xl text-left">
+                <!-- Bảng Hướng dẫn phím -->
+                <div class="glass-panel p-4 rounded-xl">
+                    <div class="flex items-center gap-2 text-neonCyan font-orbitron text-sm font-bold mb-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        FLIGHT CONTROLS
+                    </div>
+                    <ul class="text-xs sm:text-sm text-gray-300 space-y-1.5 font-medium">
+                        <li><span class="text-neonCyan font-bold">[A / D]</span> hoặc <span class="text-neonCyan font-bold">[◀ / ▶]</span> : Lượn trái / phải (Roll Tilt)</li>
+                        <li><span class="text-neonGreen font-bold">[SPACEBAR]</span> : <strong class="text-neonGreen">TĂNG TỐC & KÉO GIÃN FOV WARP</strong></li>
+                        <li><span class="text-neonMagenta font-bold">[G]</span> hoặc <span class="text-neonMagenta font-bold">[W / S]</span> : <strong class="text-neonMagenta">Đảo trọng lực (Sàn ↔ Trần)</strong></li>
+                        <li><span class="text-yellow-400 font-bold">[M]</span> : Bật / Tắt âm thanh Synthesizer</li>
+                    </ul>
+                </div>
+
+                <!-- Bảng Điểm Kỷ lục -->
+                <div class="glass-panel p-4 rounded-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 text-neonMagenta font-orbitron text-sm font-bold mb-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                            PERSONAL RECORD
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-black font-orbitron text-white mt-1">
+                            <span id="menu-highscore">0</span> <span class="text-xs font-normal text-cyan-400">PTS</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-gray-400 mt-2 flex items-center justify-between border-t border-gray-700/50 pt-2">
+                        <span>Lưu tự động LocalStorage</span>
+                        <span class="text-neonGreen">ONLINE READY</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng Nạp Model 3D Tùy Chọn (.GLB Loader) với Cơ Chế Fallback Mặc Định -->
+            <div class="glass-panel p-3.5 sm:p-4 rounded-xl mt-3.5 w-full max-w-2xl text-left border border-cyan-500/30">
+                <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+                    <div class="flex items-center gap-2 text-neonCyan font-orbitron text-xs sm:text-sm font-bold">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        CUSTOM 3D SHIP (.GLB LOADER)
+                    </div>
+                    <!-- Huy hiệu trạng thái Fallback -->
+                    <span id="model-status-badge" class="text-[10px] font-orbitron px-2.5 py-0.5 rounded-full border border-cyan-500/40 text-cyan-300 bg-cyan-950/60 shadow-neon-cyan">
+                        ✦ KHỐI 3D MẶC ĐỊNH (FALLBACK ACTIVE)
+                    </span>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input id="input-model-url" type="text" placeholder="Dán link file .glb (hoặc nhấn nút [MẪU] bên cạnh)..." class="flex-1 bg-black/60 border border-gray-700 focus:border-neonCyan rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 outline-none font-mono transition-colors" />
+                    <div class="flex gap-1.5">
+                        <button id="btn-load-model" class="btn-neon-cyan px-3 py-1.5 rounded-lg text-xs font-orbitron font-bold tracking-wider cursor-pointer">
+                            TẢI .GLB
+                        </button>
+                        <button id="btn-sample-model" class="glass-panel px-2.5 py-1.5 rounded-lg text-xs font-orbitron text-gray-300 hover:text-white border border-gray-600 hover:border-neonCyan transition-all cursor-pointer" title="Nạp link model mẫu của Three.js">
+                            MẪU
+                        </button>
+                        <button id="btn-reset-model" class="glass-panel px-2.5 py-1.5 rounded-lg text-xs font-orbitron text-gray-400 hover:text-red-400 border border-gray-700 hover:border-red-500 transition-all cursor-pointer" title="Khôi phục về khối 3D thủ tục mặc định">
+                            RESET
+                        </button>
+                    </div>
+                </div>
+                <div class="text-[11px] text-gray-400 mt-2 flex items-center justify-between">
+                    <span>* Giữ nguyên khối 3D mặc định làm fallback nếu link chưa tải xong hoặc gặp sự cố.</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Menu -->
+        <footer class="flex justify-between items-center text-[11px] md:text-xs text-gray-500 font-orbitron pointer-events-none">
+            <div>THREE.JS // GSAP // TAILWIND // WEB AUDIO SYNTH</div>
+            <div>STATUS: FLIGHT READY</div>
+        </footer>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. IN-GAME HUD OVERLAY (POINTER-EVENTS-NONE) -->
+    <!-- ========================================== -->
+    <div id="hud-screen" class="absolute inset-0 z-20 pointer-events-none hidden flex flex-col justify-between p-4 sm:p-6 md:p-8">
+        
+        <!-- Thanh phía trên HUD: Điểm số, Bội số, Tạm dừng, Tốc độ, FPS -->
+        <div class="flex justify-between items-start w-full">
+            
+            <!-- Cụm Điểm số (Top-Left) -->
+            <div class="glass-panel px-4 py-2.5 rounded-xl border-l-4 border-l-neonCyan">
+                <div class="text-[10px] md:text-xs font-orbitron text-gray-400 tracking-wider">TOTAL SCORE</div>
+                <div class="flex items-baseline space-x-2">
+                    <div id="hud-score" class="text-2xl sm:text-4xl font-black font-orbitron text-white tracking-wider">0</div>
+                    <div id="hud-multiplier" class="text-xs sm:text-sm font-black font-orbitron text-neonCyan">x1</div>
+                </div>
+            </div>
+
+            <!-- Nút Tạm dừng nhanh ở giữa (Pointer Events Auto) -->
+            <div class="pointer-events-auto flex items-center space-x-2">
+                <button id="btn-pause-quick" onclick="window.game && window.game.togglePause()" class="glass-panel px-3.5 py-2 rounded-xl text-xs font-orbitron text-gray-300 hover:text-neonCyan border border-cyan-500/30 cursor-pointer shadow-neon-cyan">
+                    PAUSE [P]
+                </button>
+            </div>
+
+            <!-- Cụm Tốc độ & FPS (Top-Right) chừa khoảng trống cho nút Âm thanh ở góc -->
+            <div class="glass-panel px-4 py-2.5 rounded-xl text-right border-r-4 border-r-neonMagenta mr-32 sm:mr-36">
+                <div class="text-[10px] md:text-xs font-orbitron text-gray-400 tracking-wider">SPEEDOMETER</div>
+                <div id="hud-speed" class="text-xl sm:text-2xl md:text-3xl font-black font-orbitron text-white tracking-wider">135 KM/H</div>
+                <div id="hud-fps" class="text-[10px] font-orbitron text-neonGreen mt-0.5">60 FPS</div>
+            </div>
+        </div>
+
+        <!-- Thông báo động trung tâm (Gravity Flipped, Hyper Boost, Speed Up) -->
+        <div class="my-auto text-center pointer-events-none">
+            <div id="hud-alert" class="text-xl sm:text-3xl md:text-4xl font-black font-orbitron uppercase opacity-0 transition-opacity">
+                <!-- Nội dung thông báo hiển thị bằng JS -->
+            </div>
+        </div>
+
+        <!-- Thanh Năng lượng Hyper-Boost (Bottom-Center) -->
+        <div class="w-full max-w-md mx-auto flex flex-col items-center">
+            <div class="flex justify-between items-center w-full text-xs font-orbitron px-1 mb-1.5 text-gray-300">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-neonCyan animate-pulse"></span>
+                    HYPER-BOOST ENERGY
+                </span>
+                <span id="hud-energy-text" class="text-neonCyan font-bold">50%</span>
+            </div>
+
+            <!-- Khung thanh năng lượng -->
+            <div class="w-full h-3.5 bg-black/60 rounded-full p-0.5 border border-cyan-500/40 glass-panel shadow-neon-cyan">
+                <div id="hud-energy-bar" class="h-full rounded-full transition-all duration-100" style="width: 50%; background-color: #00f3ff; box-shadow: 0 0 12px #00f3ff;"></div>
+            </div>
+            
+            <div class="text-[10px] font-orbitron text-gray-400 tracking-wider mt-1.5">
+                [SPACE] TĂNG TỐC FOV WARP &nbsp;|&nbsp; [G / W] ĐẢO TRỌNG LỰC
+            </div>
+
+            <!-- Các nút cảm ứng trên Mobile (Hiển thị trên màn hình nhỏ) -->
+            <div class="pointer-events-auto flex md:hidden items-center justify-between w-full mt-4 px-2">
+                <div class="flex gap-2">
+                    <button id="touch-left" class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-neonCyan font-bold active:bg-cyan-500/40">◀</button>
+                    <button id="touch-right" class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-neonCyan font-bold active:bg-cyan-500/40">▶</button>
+                </div>
+                <div class="flex gap-2">
+                    <button id="touch-flip" class="glass-panel px-3 h-12 rounded-xl flex items-center justify-center text-neonMagenta font-orbitron text-xs font-bold active:bg-magenta-500/40">FLIP</button>
+                    <button id="touch-boost" class="glass-panel px-3 h-12 rounded-xl flex items-center justify-center text-neonGreen font-orbitron text-xs font-bold active:bg-green-500/40">BOOST</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. MODAL GAME OVER (GLASSMORPHISM) -->
+    <!-- ========================================== -->
+    <div id="gameover-screen" class="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md hidden transition-opacity duration-300">
+        <div class="glass-panel-danger max-w-lg w-full p-6 sm:p-8 rounded-2xl text-center relative border border-neonMagenta shadow-neon-magenta pointer-events-auto">
+            
+            <!-- Huy hiệu Phá kỷ lục -->
+            <div id="new-highscore-badge" class="hidden mb-3">
+                <span class="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black font-orbitron text-xs tracking-widest shadow-lg animate-bounce">
+                    ★ NEW RECORD ACHIEVED ★
+                </span>
+            </div>
+
+            <h2 class="text-3xl sm:text-5xl font-black font-orbitron tracking-wider text-neonMagenta mb-1 uppercase">
+                HULL COMPROMISED
+            </h2>
+            <div class="text-xs font-orbitron text-gray-400 tracking-widest uppercase mb-6">
+                SIGNAL LOST // PROTOCOL FAILED
+            </div>
+
+            <!-- Bảng chỉ số tổng kết ván chơi -->
+            <div class="grid grid-cols-2 gap-3 mb-6 text-left">
+                <div class="glass-panel p-3 rounded-xl border border-gray-700/60">
+                    <div class="text-[10px] font-orbitron text-gray-400">FINAL SCORE</div>
+                    <div id="final-score" class="text-xl sm:text-2xl font-black font-orbitron text-white">0</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-700/60">
+                    <div class="text-[10px] font-orbitron text-gray-400">BEST RECORD</div>
+                    <div id="final-high" class="text-xl sm:text-2xl font-black font-orbitron text-neonCyan">0</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-700/60">
+                    <div class="text-[10px] font-orbitron text-gray-400">DISTANCE REACHED</div>
+                    <div id="final-distance" class="text-base sm:text-lg font-bold font-orbitron text-gray-200">0m</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-700/60">
+                    <div class="text-[10px] font-orbitron text-gray-400">CRYSTALS COLLECTED</div>
+                    <div id="final-crystals" class="text-base sm:text-lg font-bold font-orbitron text-neonGreen">0</div>
+                </div>
+            </div>
+
+            <!-- Nút Hành Động -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="btn-restart" class="btn-neon-magenta flex-1 font-orbitron py-3.5 px-6 rounded-xl font-bold tracking-widest cursor-pointer text-sm sm:text-base">
+                    REBOOT SYSTEM [ENTER]
+                </button>
+                <button id="btn-menu" class="glass-panel flex-1 font-orbitron py-3.5 px-6 rounded-xl font-bold text-gray-300 hover:text-white hover:border-gray-400 transition-all cursor-pointer text-sm sm:text-base">
+                    MAIN MENU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 5. MODAL TẠM DỪNG (PAUSE SCREEN) -->
+    <!-- ========================================== -->
+    <div id="pause-screen" class="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md hidden">
+        <div class="glass-panel max-w-sm w-full p-6 rounded-2xl text-center border border-neonCyan shadow-neon-cyan pointer-events-auto">
+            <h3 class="text-2xl sm:text-3xl font-black font-orbitron tracking-widest text-white mb-2">
+                SYSTEM PAUSED
+            </h3>
+            <p class="text-xs text-gray-400 font-orbitron mb-6">TEMPORARY SUSPENSION ACTIVE</p>
+
+            <button id="btn-resume" class="btn-neon-cyan w-full font-orbitron py-3 rounded-xl font-bold tracking-widest mb-3 cursor-pointer">
+                RESUME FLIGHT
+            </button>
+            <button onclick="window.game && window.game.returnToMenu()" class="glass-panel w-full font-orbitron py-3 rounded-xl font-bold text-gray-400 hover:text-white transition-all cursor-pointer text-sm">
+                ABORT TO MENU
+            </button>
+        </div>
+    </div>
+
+    <!-- Khởi chạy Module JavaScript của trò chơi -->
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>

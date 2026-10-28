@@ -1,0 +1,21 @@
+{
+  "name": "cyber-drift-zero-gravity",
+  "version": "1.0.0",
+  "description": "3D Sci-Fi Endless Runner & Obstacle Course Game website with Three.js, Tailwind CSS, GSAP and Antigravity Physics",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "serve": "node server.js"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "cyberpunk",
+    "game",
+    "gsap",
+    "tailwind"
+  ],
+  "author": "Antigravity Creative Developer",
+  "license": "MIT"
+}
